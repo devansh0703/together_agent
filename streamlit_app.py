@@ -18,16 +18,11 @@ from typing import Dict, List, Any, Optional, Union
 import requests
 from together import Together
 import warnings
-import tempfile
 import os
-
+import tempfile
 warnings.filterwarnings('ignore')
 
-# --- Tesseract OCR Path (Uncomment and modify if pytesseract isn't found) ---
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
-# For Linux/macOS, it's usually just 'tesseract' if installed in PATH, otherwise provide full path.
-
-# --- DataAnalystAgent Class (Your provided code) ---
+# Your DataAnalystAgent class (paste your existing class here)
 class DataAnalystAgent:
     def __init__(self, api_key: str):
         """
@@ -272,7 +267,7 @@ class DataAnalystAgent:
                 'paragraph_count': len([p for p in text.split('\n\n') if p.strip()])
             },
             'word_frequency': {},
-            'common_phrases': [] # Not implemented in original, keeping for structure
+            'common_phrases': []
         }
         
         # Word frequency analysis
@@ -319,14 +314,13 @@ class DataAnalystAgent:
             else:
                 return None
         except Exception as e:
-            st.error(f"Error creating visualization: {str(e)}") # Using st.error for visibility
+            print(f"Error creating visualization: {str(e)}")
             return None
     
     def _create_correlation_heatmap(self, df: pd.DataFrame) -> str:
         """Create correlation heatmap"""
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) < 2:
-            st.warning("Not enough numeric columns for a correlation heatmap.")
             return None
         
         plt.figure(figsize=(10, 8))
@@ -347,7 +341,6 @@ class DataAnalystAgent:
     def _create_distribution_plot(self, df: pd.DataFrame, column: str) -> str:
         """Create distribution plot"""
         if column not in df.columns:
-            st.warning(f"Column '{column}' not found for distribution plot.")
             return None
         
         plt.figure(figsize=(10, 6))
@@ -378,10 +371,6 @@ class DataAnalystAgent:
     def _create_scatter_plot(self, df: pd.DataFrame, x_col: str, y_col: str) -> str:
         """Create scatter plot"""
         if x_col not in df.columns or y_col not in df.columns:
-            st.warning(f"Columns '{x_col}' or '{y_col}' not found for scatter plot.")
-            return None
-        if not pd.api.types.is_numeric_dtype(df[x_col]) or not pd.api.types.is_numeric_dtype(df[y_col]):
-            st.warning(f"Both '{x_col}' and '{y_col}' must be numeric for a scatter plot.")
             return None
         
         plt.figure(figsize=(10, 6))
@@ -403,20 +392,15 @@ class DataAnalystAgent:
     def _create_bar_plot(self, df: pd.DataFrame, column: str) -> str:
         """Create bar plot"""
         if column not in df.columns:
-            st.warning(f"Column '{column}' not found for bar plot.")
             return None
         
         plt.figure(figsize=(12, 6))
         value_counts = df[column].value_counts().head(15)
-        if value_counts.empty:
-            st.warning(f"Column '{column}' has no data to plot.")
-            return None
-        
         plt.bar(range(len(value_counts)), value_counts.values)
         plt.xticks(range(len(value_counts)), value_counts.index, rotation=45, ha='right')
         plt.xlabel(column)
         plt.ylabel('Count')
-        plt.title(f'Top {min(len(value_counts), 15)} Values in {column}')
+        plt.title(f'Top 15 Values in {column}')
         plt.tight_layout()
         
         # Convert to base64
@@ -431,10 +415,6 @@ class DataAnalystAgent:
     def _create_line_plot(self, df: pd.DataFrame, x_col: str, y_col: str) -> str:
         """Create line plot"""
         if x_col not in df.columns or y_col not in df.columns:
-            st.warning(f"Columns '{x_col}' or '{y_col}' not found for line plot.")
-            return None
-        if not pd.api.types.is_numeric_dtype(df[y_col]):
-            st.warning(f"Column '{y_col}' must be numeric for a line plot.")
             return None
         
         plt.figure(figsize=(12, 6))
@@ -458,7 +438,6 @@ class DataAnalystAgent:
     def _create_box_plot(self, df: pd.DataFrame, column: str) -> str:
         """Create box plot"""
         if column not in df.columns or df[column].dtype not in ['int64', 'float64']:
-            st.warning(f"Column '{column}' not found or is not numeric for box plot.")
             return None
         
         plt.figure(figsize=(8, 6))
@@ -508,11 +487,11 @@ class DataAnalystAgent:
             
             answer = response.choices[0].message.content
             
-            # Store in conversation history - this is managed by Streamlit app state
-            # self.conversation_history.append({
-            #     'question': question,
-            #     'answer': answer
-            # })
+            # Store in conversation history
+            self.conversation_history.append({
+                'question': question,
+                'answer': answer
+            })
             
             return answer
             
@@ -521,10 +500,10 @@ class DataAnalystAgent:
     
     def _prepare_context_for_llm(self) -> str:
         """Prepare context information for the LLM"""
-        context = f"Data Type: {self.data_info.get('type', 'N/A')}\n"
-        context += f"File Type: {self.data_info.get('file_type', 'N/A')}\n\n"
+        context = f"Data Type: {self.data_info['type']}\n"
+        context += f"File Type: {self.data_info['file_type']}\n\n"
         
-        if self.data_info.get('type') == 'tabular':
+        if self.data_info['type'] == 'tabular':
             df = self.data
             context += f"Dataset Shape: {df.shape[0]} rows, {df.shape[1]} columns\n"
             context += f"Columns: {', '.join(df.columns.tolist())}\n\n"
@@ -548,8 +527,8 @@ class DataAnalystAgent:
                         context += f"{col}: {missing_count} ({missing_count/len(df)*100:.1f}%)\n"
                 context += "\n"
         
-        elif self.data_info.get('type') in ['text', 'image_text']:
-            context += f"Text Length: {self.data_info.get('length', 'N/A')} characters\n"
+        elif self.data_info['type'] in ['text', 'image_text']:
+            context += f"Text Length: {self.data_info['length']} characters\n"
             context += f"Sample Text:\n{self.data[:1000]}...\n\n"
         
         return context
@@ -622,7 +601,7 @@ Please be specific and use actual values from the data in your analysis.
         """
         Suggest appropriate visualizations based on the data
         """
-        if self.data is None or self.data_info.get('type') != 'tabular':
+        if self.data is None or self.data_info['type'] != 'tabular':
             return []
         
         df = self.data
@@ -651,7 +630,7 @@ Please be specific and use actual values from the data in your analysis.
         
         # Bar plots for categorical columns
         for col in categorical_cols[:3]:  # Limit to first 3 categorical columns
-            if df[col].nunique() > 1 and df[col].nunique() <= 20:  # Only for columns with reasonable number of categories
+            if df[col].nunique() <= 20:  # Only for columns with reasonable number of categories
                 suggestions.append({
                     'type': 'bar',
                     'title': f'Value Counts for {col}',
@@ -677,345 +656,414 @@ Please be specific and use actual values from the data in your analysis.
                 'parameters': {'column': col}
             })
         
-        # Line plots (if dates/time series or orderable numerical data)
-        # This part is more heuristic, might need specific column names or types
-        # For simplicity, will just suggest if two numeric columns are available
-        if len(numeric_cols) >= 2:
-             suggestions.append({
-                'type': 'line',
-                'title': f'Line Plot: {numeric_cols[1]} over {numeric_cols[0]}',
-                'description': f'Shows trend of {numeric_cols[1]} values ordered by {numeric_cols[0]}',
-                'parameters': {'x': numeric_cols[0], 'y': numeric_cols[1]}
-            })
-
         return suggestions
 
-
-# --- Streamlit App ---
-
+# Set page config
 st.set_page_config(
-    page_title="Data Analyst AI Agent",
+    page_title="AI Data Analyst Assistant",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Initialize Session State ---
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3rem;
+        color: #1f77b4;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    .section-header {
+        font-size: 1.8rem;
+        color: #2c3e50;
+        border-bottom: 3px solid #3498db;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+    .insight-box {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 5px solid #007bff;
+        margin: 1rem 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .metric-container {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin: 0.5rem 0;
+        border: 1px solid #e0e0e0;
+    }
+    .chat-message {
+        background-color: #f1f3f4;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        border-left: 4px solid #4285f4;
+    }
+    .question {
+        background-color: #e3f2fd;
+        border-left-color: #2196f3;
+    }
+    .answer {
+        background-color: #f3e5f5;
+        border-left-color: #9c27b0;
+    }
+    .upload-box {
+        border: 2px dashed #cccccc;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        background-color: #fafafa;
+        margin: 1rem 0;
+    }
+    .sidebar .sidebar-content {
+        background-color: #f8f9fa;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state
 if 'agent' not in st.session_state:
     st.session_state.agent = None
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
-if 'data_info' not in st.session_state:
-    st.session_state.data_info = {}
-if 'data_preview' not in st.session_state:
-    st.session_state.data_preview = None
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-if 'analysis_results' not in st.session_state:
-    st.session_state.analysis_results = None
-if 'current_tab' not in st.session_state:
-    st.session_state.current_tab = "Overview"
+if 'conversation_history' not in st.session_state:
+    st.session_state.conversation_history = []
 
+def initialize_agent(api_key):
+    """Initialize the Data Analyst Agent"""
+    try:
+        agent = DataAnalystAgent(api_key)
+        st.session_state.agent = agent
+        return True
+    except Exception as e:
+        st.error(f"Error initializing agent: {str(e)}")
+        return False
 
-# --- Sidebar for Configuration and Upload ---
-with st.sidebar:
-    st.title("⚙️ Configuration")
-    
-    st.markdown("---")
-    st.subheader("Together.ai API Key")
-    # Try to get API key from secrets.toml first
-    api_key = "a911532c3f2b6e75cebc8868993637e359f3c1aca0206caa6c16818ce7dc73b5"
-    if not api_key:
-        api_key = st.text_input("Enter your Together.ai API Key:", type="password")
-    
-    if api_key and st.session_state.agent is None:
+def load_uploaded_file(uploaded_file):
+    """Load uploaded file and process it"""
+    if uploaded_file is not None:
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+            tmp_file.write(uploaded_file.getbuffer())
+            tmp_file_path = tmp_file.name
+        
+        # Load with agent
+        result = st.session_state.agent.load_document(tmp_file_path)
+        
+        # Clean up temp file
         try:
-            st.session_state.agent = DataAnalystAgent(api_key)
-            st.success("Agent Initialized! 🎉")
-        except Exception as e:
-            st.error(f"Error initializing agent: {e}. Please check your API key.")
-            st.session_state.agent = None
-    elif not api_key:
-        st.info("Please enter your Together.ai API Key to initialize the agent.")
-
-    st.markdown("---")
-    st.subheader("Upload Document")
-    uploaded_file = st.file_uploader(
-        "Choose a file",
-        type=['csv', 'xlsx', 'xls', 'pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg', 'tiff', 'bmp'],
-        help="Supported formats: CSV, Excel, PDF, Word, TXT, Image (for OCR)"
-    )
-
-    if uploaded_file and st.session_state.agent:
-        file_extension = uploaded_file.name.split('.')[-1].lower()
+            os.unlink(tmp_file_path)
+        except:
+            pass
         
-        # Save uploaded file to a temporary location
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_extension}") as tmp_file:
-            tmp_file.write(uploaded_file.read())
-            tmp_path = tmp_file.name
+        return result
+    return None
 
-        with st.spinner(f"Loading {file_extension.upper()} file..."):
-            load_result = st.session_state.agent.load_document(tmp_path)
+def display_data_overview():
+    """Display data overview and basic statistics"""
+    if st.session_state.agent and st.session_state.agent.data is not None:
+        data_info = st.session_state.agent.data_info
+        
+        st.markdown('<div class="section-header">📊 Data Overview</div>', unsafe_allow_html=True)
+        
+        if data_info['type'] == 'tabular':
+            df = st.session_state.agent.data
             
-            # Clean up the temporary file
-            os.unlink(tmp_path)
-
-            if load_result.get('success'):
-                st.session_state.data_loaded = True
-                st.session_state.data_info = load_result['info']
-                if st.session_state.data_info['type'] == 'tabular':
-                    st.session_state.data_preview = pd.DataFrame.from_dict(load_result['data_preview'])
-                else:
-                    st.session_state.data_preview = load_result['text_preview'] if 'text_preview' in load_result else load_result['extracted_text']
-                
-                st.success(f"File loaded successfully! Type: {st.session_state.data_info['type']}")
-                st.session_state.chat_history = [] # Clear chat on new data load
-                st.session_state.analysis_results = None # Clear analysis on new data load
-                st.session_state.current_tab = "Overview" # Switch to overview tab
-                st.rerun() # Rerun to update main content
-            else:
-                st.session_state.data_loaded = False
-                st.error(f"Failed to load file: {load_result.get('error', 'Unknown error')}")
-                st.session_state.agent.data = None
-                st.session_state.data_info = {}
-                st.session_state.data_preview = None
-    elif uploaded_file and not st.session_state.agent:
-        st.warning("Please initialize the agent with an API key first.")
-    
-    st.markdown("---")
-    st.markdown("### About")
-    st.info("This app uses a Data Analyst AI Agent powered by Together.ai's Llama-4-Maverick to analyze various document types and provide insights.")
-
-
-# --- Main Content Area ---
-st.title("📊 Data Analyst AI Agent")
-st.markdown("Welcome to your AI-powered data analyst! Upload a document to get started.")
-
-if not st.session_state.agent:
-    st.warning("Please enter your Together.ai API Key in the sidebar to begin.")
-elif not st.session_state.data_loaded:
-    st.info("Upload a document (CSV, Excel, PDF, Word, TXT, Image) from the sidebar to analyze it.")
-
-if st.session_state.data_loaded:
-    tab_overview, tab_analysis, tab_insights, tab_qa, tab_viz = st.tabs(
-        ["📄 Data Overview", "🔬 Data Analysis", "💡 Generated Insights", "💬 Ask a Question", "📈 Visualizations"]
-    )
-
-    with tab_overview:
-        st.header("Document Information")
-        if st.session_state.data_info:
-            col1, col2 = st.columns(2)
+            # Key metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
             with col1:
-                st.subheader("File Details")
-                st.json(st.session_state.data_info)
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                st.metric("📏 Rows", f"{df.shape[0]:,}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
             with col2:
-                st.subheader("Data Preview")
-                if st.session_state.data_info['type'] == 'tabular':
-                    st.dataframe(st.session_state.data_preview)
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                st.metric("📋 Columns", df.shape[1])
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                missing_percent = (df.isnull().sum().sum() / (df.shape[0] * df.shape[1]) * 100)
+                st.metric("❌ Missing Data", f"{missing_percent:.1f}%")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                memory_mb = df.memory_usage(deep=True).sum() / 1024 / 1024
+                st.metric("💾 Memory Usage", f"{memory_mb:.1f} MB")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Data preview
+            st.subheader("📝 Data Preview")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Column information
+            st.subheader("🔍 Column Information")
+            col_info = pd.DataFrame({
+                'Column': df.columns,
+                'Type': df.dtypes.astype(str),
+                'Non-Null Count': df.count(),
+                'Null Count': df.isnull().sum(),
+                'Null %': (df.isnull().sum() / len(df) * 100).round(2)
+            })
+            st.dataframe(col_info, use_container_width=True)
+            
+        elif data_info['type'] in ['text', 'image_text']:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                st.metric("📄 Characters", f"{data_info['length']:,}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                word_count = len(st.session_state.agent.data.split())
+                st.metric("📝 Words", f"{word_count:,}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                if 'pages' in data_info:
+                    st.metric("📖 Pages", data_info['pages'])
+                elif 'paragraphs' in data_info:
+                    st.metric("📋 Paragraphs", data_info['paragraphs'])
                 else:
-                    st.text_area("Text Content Preview", st.session_state.data_preview, height=300)
-        else:
-            st.info("No data information available. Please load a file.")
+                    st.metric("📏 Lines", data_info['lines'])
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Text preview
+            st.subheader("📝 Text Preview")
+            preview_text = st.session_state.agent.data[:2000] + "..." if len(st.session_state.agent.data) > 2000 else st.session_state.agent.data
+            st.text_area("Content Preview", preview_text, height=200)
 
-    with tab_analysis:
-        st.header("Comprehensive Data Analysis")
-        st.markdown("Click the button below to perform a detailed analysis of the loaded data.")
+def display_visualizations():
+    """Display visualization options and charts"""
+    if st.session_state.agent and st.session_state.agent.data is not None and st.session_state.agent.data_info['type'] == 'tabular':
+        st.markdown('<div class="section-header">📈 Data Visualizations</div>', unsafe_allow_html=True)
         
-        if st.button("Run Data Analysis", type="primary", use_container_width=True):
-            if st.session_state.agent.data is None:
-                st.warning("No data loaded to analyze.")
-            else:
-                with st.spinner("Analyzing data... This might take a moment."):
-                    st.session_state.analysis_results = st.session_state.agent.analyze_data()
-                    
-                if st.session_state.analysis_results and "error" not in st.session_state.analysis_results:
-                    st.success("Analysis complete!")
-                else:
-                    st.error(f"Analysis failed: {st.session_state.analysis_results.get('error', 'Unknown error')}")
+        df = st.session_state.agent.data
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        all_cols = df.columns.tolist()
+        
+        # Visualization type selector
+        viz_type = st.selectbox(
+            "Select Visualization Type",
+            ["Correlation Heatmap", "Distribution Plot", "Scatter Plot", "Bar Chart", "Line Plot", "Box Plot"],
+            key="viz_type"
+        )
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            # Parameters based on visualization type
+            if viz_type == "Distribution Plot":
+                selected_col = st.selectbox("Select Column", all_cols, key="dist_col")
+                if st.button("Generate Distribution Plot"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('distribution', column=selected_col)
+                        if chart:
+                            st.session_state.current_chart = chart
+            
+            elif viz_type == "Scatter Plot":
+                x_col = st.selectbox("Select X-axis", numeric_cols, key="scatter_x")
+                y_col = st.selectbox("Select Y-axis", numeric_cols, key="scatter_y")
+                if st.button("Generate Scatter Plot"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('scatter', x=x_col, y=y_col)
+                        if chart:
+                            st.session_state.current_chart = chart
+            
+            elif viz_type == "Bar Chart":
+                selected_col = st.selectbox("Select Column", categorical_cols, key="bar_col")
+                if st.button("Generate Bar Chart"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('bar', column=selected_col)
+                        if chart:
+                            st.session_state.current_chart = chart
+            
+            elif viz_type == "Line Plot":
+                x_col = st.selectbox("Select X-axis", all_cols, key="line_x")
+                y_col = st.selectbox("Select Y-axis", numeric_cols, key="line_y")
+                if st.button("Generate Line Plot"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('line', x=x_col, y=y_col)
+                        if chart:
+                            st.session_state.current_chart = chart
+            
+            elif viz_type == "Box Plot":
+                selected_col = st.selectbox("Select Column", numeric_cols, key="box_col")
+                if st.button("Generate Box Plot"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('box', column=selected_col)
+                        if chart:
+                            st.session_state.current_chart = chart
+            
+            elif viz_type == "Correlation Heatmap":
+                if st.button("Generate Correlation Heatmap"):
+                    with st.spinner("Creating visualization..."):
+                        chart = st.session_state.agent.create_visualization('correlation_heatmap')
+                        if chart:
+                            st.session_state.current_chart = chart
+        
+        with col2:
+            # Display chart
+            if 'current_chart' in st.session_state and st.session_state.current_chart:
+                st.image(base64.b64decode(st.session_state.current_chart), use_column_width=True)
 
-        if st.session_state.analysis_results:
-            analysis = st.session_state.analysis_results
-            if "error" not in analysis:
-                st.subheader("Analysis Results:")
-
-                # Basic Info
-                with st.expander("📊 Basic Information"):
-                    if 'basic_info' in analysis:
-                        st.json(analysis['basic_info'])
-
-                # Missing Data
-                with st.expander("🔍 Missing Data Overview"):
-                    if 'missing_data' in analysis:
-                        st.markdown("#### Missing Counts:")
-                        st.json(analysis['missing_data'].get('missing_counts', {}))
-                        st.markdown("#### Missing Percentages:")
-                        st.json(analysis['missing_data'].get('missing_percentages', {}))
-
-                # Statistical Summary
-                if st.session_state.data_info['type'] == 'tabular':
-                    with st.expander("📈 Statistical Summary (Numerical Columns)"):
-                        if 'statistical_summary' in analysis and analysis['statistical_summary']:
-                            # Convert to DataFrame for better display
-                            summary_df = pd.DataFrame(analysis['statistical_summary'])
-                            st.dataframe(summary_df)
-                        else:
-                            st.info("No numerical columns for statistical summary.")
-
-                    # Categorical Analysis
-                    with st.expander("🏷️ Categorical Analysis"):
-                        if 'categorical_analysis' in analysis and analysis['categorical_analysis']:
-                            for col, data in analysis['categorical_analysis'].items():
-                                st.markdown(f"##### Column: `{col}`")
-                                st.write(f"Unique Values: {data.get('unique_values')}")
-                                st.markdown("Value Counts (Top 10):")
-                                st.json(data.get('value_counts'))
-                                st.markdown("---")
-                        else:
-                            st.info("No suitable categorical columns for analysis.")
-                    
-                    # Correlations
-                    with st.expander("🔗 Correlations (Numerical Columns)"):
-                        if 'correlations' in analysis and analysis['correlations']:
-                            # Convert to DataFrame for better display
-                            corr_df = pd.DataFrame(analysis['correlations'])
-                            st.dataframe(corr_df)
-                            st.info("A higher absolute value indicates a stronger correlation.")
-                        else:
-                            st.info("Not enough numerical columns for correlation analysis.")
-                
-                elif st.session_state.data_info['type'] in ['text', 'image_text']:
-                    with st.expander("📝 Text Analysis"):
-                        if 'word_frequency' in analysis:
-                            st.markdown("#### Top 20 Word Frequencies:")
-                            freq_df = pd.DataFrame(analysis['word_frequency'].items(), columns=['Word', 'Frequency'])
-                            st.dataframe(freq_df)
-                        else:
-                            st.info("Text analysis results not available.")
-            else:
-                st.error(f"Error during analysis: {analysis['error']}")
-
-
-    with tab_insights:
-        st.header("Automated Insights")
-        st.markdown("Get a comprehensive summary and actionable insights from the loaded data.")
-
-        if st.button("Generate Insights", type="primary", use_container_width=True):
-            if st.session_state.agent.data is None:
-                st.warning("No data loaded to generate insights.")
-            else:
-                with st.spinner("Generating insights... This may take a minute."):
+def display_chat_interface():
+    """Display chat interface for asking questions"""
+    st.markdown('<div class="section-header">💬 Ask Questions About Your Data</div>', unsafe_allow_html=True)
+    
+    if st.session_state.agent and st.session_state.data_loaded:
+        # Question input
+        question = st.text_input("Ask a question about your data:", key="question_input")
+        
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("Ask Question", type="primary"):
+                if question:
+                    with st.spinner("Analyzing your question..."):
+                        answer = st.session_state.agent.ask_question(question)
+                        st.session_state.conversation_history.append({
+                            'question': question,
+                            'answer': answer
+                        })
+                        # Clear the input
+                        st.rerun()
+        
+        with col2:
+            if st.button("Generate Auto Insights"):
+                with st.spinner("Generating insights..."):
                     insights = st.session_state.agent.generate_insights()
-                
-                if "Error generating insights" in insights:
-                    st.error(insights)
-                else:
-                    st.success("Insights Generated!")
-                    st.session_state.generated_insights = insights
+                    st.session_state.conversation_history.append({
+                        'question': 'Auto-generated insights',
+                        'answer': insights
+                    })
+                    st.rerun()
         
-        if 'generated_insights' in st.session_state and st.session_state.generated_insights:
-            st.markdown(st.session_state.generated_insights)
+        # Display conversation history
+        if st.session_state.conversation_history:
+            st.subheader("💭 Conversation History")
+            for i, chat in enumerate(reversed(st.session_state.conversation_history)):
+                with st.expander(f"Q: {chat['question'][:100]}..." if len(chat['question']) > 100 else f"Q: {chat['question']}", expanded=(i==0)):
+                    st.markdown(f"**Question:** {chat['question']}")
+                    st.markdown(f"**Answer:** {chat['answer']}")
+    else:
+        st.info("Please upload a dataset first to start asking questions.")
 
-
-    with tab_qa:
-        st.header("Ask the Data Analyst AI")
-        st.markdown("Chat with the AI to get answers about your data.")
-
-        # Display chat messages from history
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Chat input
-        if prompt := st.chat_input("Ask a question about the data..."):
-            st.session_state.chat_history.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            if st.session_state.agent.data is None:
-                with st.chat_message("assistant"):
-                    st.markdown("No data has been loaded. Please load a document first.")
-                st.session_state.chat_history.append({"role": "assistant", "content": "No data has been loaded. Please load a document first."})
+def main():
+    """Main Streamlit application"""
+    
+    # Header
+    st.markdown('<div class="main-header">🤖 AI Data Analyst Assistant</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # Sidebar
+    with st.sidebar:
+        st.header("🔧 Configuration")
+        
+        # API Key input
+        api_key = st.text_input("Enter Together.ai API Key:", type="password", help="Get your API key from together.ai")
+        
+        if api_key and not st.session_state.agent:
+            if initialize_agent(api_key):
+                st.success("✅ Agent initialized successfully!")
             else:
-                with st.spinner("Thinking..."):
-                    response = st.session_state.agent.ask_question(prompt)
-                
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-                st.session_state.chat_history.append({"role": "assistant", "content": response})
-
-    with tab_viz:
-        st.header("Data Visualizations")
-
-        if st.session_state.data_info['type'] != 'tabular':
-            st.warning("Visualizations are only supported for tabular data (CSV, Excel).")
-        elif not st.session_state.agent.data.empty:
-            df_cols = st.session_state.agent.data.columns.tolist()
-            numeric_cols = st.session_state.agent.data.select_dtypes(include=[np.number]).columns.tolist()
+                st.error("❌ Failed to initialize agent. Please check your API key.")
+        
+        st.markdown("---")
+        
+        # File upload
+        st.header("📁 Upload Dataset")
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            type=['csv', 'xlsx', 'xls', 'pdf', 'docx', 'doc', 'txt', 'png', 'jpg', 'jpeg'],
+            help="Supported formats: CSV, Excel, PDF, Word, Text, Images"
+        )
+        
+        if uploaded_file and st.session_state.agent:
+            if st.button("Load Dataset", type="primary"):
+                with st.spinner("Loading and analyzing dataset..."):
+                    result = load_uploaded_file(uploaded_file)
+                    
+                    if result and 'success' in result and result['success']:
+                        st.session_state.data_loaded = True
+                        st.success(f"✅ Dataset loaded successfully!")
+                        st.info(f"File type: {result['info']['file_type'].upper()}")
+                        st.rerun()
+                    elif result and 'error' in result:
+                        st.error(f"❌ Error: {result['error']}")
+                    else:
+                        st.error("❌ Unknown error occurred while loading the dataset.")
+        
+        # Sample data option
+        st.markdown("---")
+        st.header("🎯 Try Sample Data")
+        if st.button("Load Sample Dataset") and st.session_state.agent:
+            # Create sample data
+            sample_data = {
+                'Name': ['Alice Johnson', 'Bob Smith', 'Charlie Brown', 'Diana Prince', 'Eve Wilson', 'Frank Miller', 'Grace Lee', 'Henry Davis'],
+                'Age': [25, 30, 35, 28, 32, 29, 26, 31],
+                'Salary': [50000, 60000, 70000, 55000, 65000, 58000, 52000, 63000],
+                'Department': ['IT', 'HR', 'IT', 'Finance', 'IT', 'HR', 'Finance', 'IT'],
+                'Experience': [2, 5, 8, 3, 6, 4, 2, 7],
+                'Performance_Score': [8.5, 7.2, 9.1, 8.0, 8.8, 7.5, 8.2, 9.0]
+            }
             
-            st.subheader("Suggested Visualizations:")
-            suggestions = st.session_state.agent.suggest_visualizations()
-            if suggestions:
-                cols = st.columns(3) # Display suggestions in up to 3 columns
-                for i, viz_sugg in enumerate(suggestions):
-                    with cols[i % 3]:
-                        if st.button(f"Generate: {viz_sugg['title']}", key=f"sugg_viz_{i}", use_container_width=True):
-                            with st.spinner(f"Generating {viz_sugg['title']}..."):
-                                img_base64 = st.session_state.agent.create_visualization(
-                                    viz_sugg['type'], **viz_sugg['parameters']
-                                )
-                                if img_base64:
-                                    st.image(f"data:image/png;base64,{img_base64}", caption=viz_sugg['title'])
-                                else:
-                                    st.error(f"Could not generate {viz_sugg['title']}.")
-            else:
-                st.info("No specific visualization suggestions available for this data.")
-
+            df = pd.DataFrame(sample_data)
+            
+            # Save to temporary file and load
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
+                df.to_csv(tmp_file.name, index=False)
+                result = st.session_state.agent.load_document(tmp_file.name)
+                os.unlink(tmp_file.name)
+            
+            if result and 'success' in result:
+                st.session_state.data_loaded = True
+                st.success("✅ Sample dataset loaded!")
+                st.rerun()
+        
+        # Dataset info
+        if st.session_state.data_loaded:
             st.markdown("---")
-            st.subheader("Custom Visualization Builder:")
-            st.markdown("Select a plot type and relevant columns to create your own visualization.")
+            st.header("ℹ️ Dataset Info")
+            data_info = st.session_state.agent.data_info
+            st.write(f"**Type:** {data_info['type']}")
+            st.write(f"**Format:** {data_info['file_type'].upper()}")
+            if data_info['type'] == 'tabular':
+                st.write(f"**Shape:** {data_info['shape']}")
+                st.write(f"**Columns:** {len(data_info['columns'])}")
+    
+    # Main content area
+    if not st.session_state.agent:
+        st.info("👆 Please enter your Together.ai API key in the sidebar to get started.")
+    elif not st.session_state.data_loaded:
+        st.info("📁 Please upload a dataset or load sample data from the sidebar.")
+    else:
+        # Create tabs for different views
+        tab1, tab2, tab3 = st.tabs(["📊 Data Overview", "📈 Visualizations", "💬 AI Chat"])
+        
+        with tab1:
+            display_data_overview()
+        
+        with tab2:
+            display_visualizations()
+        
+        with tab3:
+            display_chat_interface()
 
-            plot_type = st.selectbox(
-                "Select Plot Type",
-                ["None", "distribution", "bar", "scatter", "line", "box", "correlation_heatmap"],
-                key="custom_plot_type"
-            )
-
-            plot_params = {}
-            if plot_type == "distribution":
-                column = st.selectbox("Select Column", df_cols, key="dist_col")
-                if column: plot_params['column'] = column
-            elif plot_type == "bar":
-                column = st.selectbox("Select Column", df_cols, key="bar_col")
-                if column: plot_params['column'] = column
-            elif plot_type == "scatter":
-                col1, col2 = st.columns(2)
-                with col1:
-                    x_col = st.selectbox("Select X-axis Column (Numeric)", numeric_cols, key="scatter_x")
-                with col2:
-                    y_col = st.selectbox("Select Y-axis Column (Numeric)", numeric_cols, key="scatter_y")
-                if x_col and y_col: plot_params.update({'x': x_col, 'y': y_col})
-            elif plot_type == "line":
-                col1, col2 = st.columns(2)
-                with col1:
-                    x_col = st.selectbox("Select X-axis Column", df_cols, key="line_x")
-                with col2:
-                    y_col = st.selectbox("Select Y-axis Column (Numeric)", numeric_cols, key="line_y")
-                if x_col and y_col: plot_params.update({'x': x_col, 'y': y_col})
-            elif plot_type == "box":
-                column = st.selectbox("Select Column (Numeric)", numeric_cols, key="box_col")
-                if column: plot_params['column'] = column
-            
-            if plot_type != "None" and st.button(f"Generate {plot_type.replace('_', ' ').title()} Plot", type="secondary", use_container_width=True):
-                if (plot_type == "correlation_heatmap" and len(numeric_cols) < 2) or \
-                   (plot_type in ["distribution", "bar", "box"] and 'column' not in plot_params) or \
-                   (plot_type in ["scatter", "line"] and ('x' not in plot_params or 'y' not in plot_params)):
-                    st.warning("Please select all required parameters for the chosen plot type.")
-                else:
-                    with st.spinner(f"Generating {plot_type.replace('_', ' ')} plot..."):
-                        img_base64 = st.session_state.agent.create_visualization(plot_type, **plot_params)
-                        if img_base64:
-                            st.image(f"data:image/png;base64,{img_base64}", caption=f"{plot_type.replace('_', ' ').title()} Plot")
-                        else:
-                            st.error(f"Could not generate {plot_type.replace('_', ' ')} plot. Check parameters and data suitability.")
-        else:
-            st.info("Upload tabular data to enable visualization features.")
+if __name__ == "__main__":
+    main()
