@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+Pillow
+pytesseract
+PyPDF2
+python-docx
+requests
+together
